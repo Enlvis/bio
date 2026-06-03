@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>enlvis@dev:~$</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #0d0d0d;
+  --bg2:     #111111;
+  --green:   #39ff14;
+  --green2:  #22cc00;
+  --green3:  rgba(57,255,20,0.08);
+  --dim:     #2a6e1a;
+  --muted:   #557a4a;
+  --text:    #b8ffaa;
+  --gray:    #3d3d3d;
+  --mono:    'JetBrains Mono', 'Courier New', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* CRT scanlines */
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.15) 2px,
+    rgba(0,0,0,0.15) 4px
+  );
+}
+
+/* CRT vignette */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.7) 100%);
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* phosphor glow on text */
+.glow { text-shadow: 0 0 6px var(--green), 0 0 12px rgba(57,255,20,0.4); }
+
+/* ─── WINDOW CHROME ──────────────────────────────────── */
+.window-wrap {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.window {
+  border: 1px solid var(--gray);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(57,255,20,0.05), 0 20px 60px rgba(0,0,0,0.8);
+}
+
+.titlebar {
+  background: #1c1c1c;
+  padding: 0.6rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--gray);
+  user-select: none;
+}
+
+.tb-btn {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tb-close   { background: #ff5f57; }
+.tb-min     { background: #febc2e; }
+.tb-max     { background: #28c840; }
+
+.tb-title {
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  letter-spacing: 0.05em;
+}
+
+/* ─── TERMINAL BODY ──────────────────────────────────── */
+.term {
+  background: var(--bg);
+  padding: 1.5rem 1.75rem 2rem;
+  min-height: 90vh;
+}
+
+/* ─── PROMPT ─────────────────────────────────────────── */
+.prompt-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  margin-bottom: 0.15rem;
+  flex-wrap: wrap;
+}
+
+.p-user   { color: var(--green);  font-weight: 700; }
+.p-at     { color: var(--muted); }
+.p-host   { color: var(--green2); font-weight: 700; }
+.p-colon  { color: var(--muted); }
+.p-path   { color: #6ab0ff; font-weight: 500; }
+.p-dollar { color: var(--muted); margin: 0 0.5rem; }
+.p-cmd    { color: #fff; }
+.p-arg    { color: #ffcc66; }
+.p-flag   { color: var(--muted); }
+.p-str    { color: #ff9980; }
+
+/* ─── OUTPUT BLOCKS ──────────────────────────────────── */
+.out {
+  padding: 0.25rem 0 1rem 0;
+  color: var(--text);
+}
+
+.blank { height: 0.75rem; }
+
+/* ASCII art */
+.ascii {
+  color: var(--green);
+  font-size: 12px;
+  line-height: 1.25;
+  text-shadow: 0 0 8px rgba(57,255,20,0.5);
+  white-space: pre;
+  margin: 0.25rem 0 0.75rem;
+  overflow-x: auto;
+}
+
+/* Section header style */
+.sec-head {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 0 6px rgba(57,255,20,0.4);
+}
+
+/* File listing (ls style) */
+.ls-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.1rem 0;
+}
+
+.ls-dir    { color: #6ab0ff; font-weight: 700; }
+.ls-file   { color: var(--text); }
+.ls-exec   { color: var(--green); font-weight: 700; }
+.ls-link   { color: #00e5ff; }
+
+/* cat output */
+.cat-key   { color: #ffcc66; }
+.cat-val   { color: var(--text); }
+.cat-comment { color: var(--muted); font-style: italic; }
+
+/* table-ish output */
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl td { padding: 0.2rem 1.5rem 0.2rem 0; vertical-align: top; }
+.tbl .k { color: var(--muted); white-space: nowrap; }
+.tbl .v { color: var(--text); }
+.tbl .va { color: var(--green); }
+.tbl .vb { color: #6ab0ff; }
+.tbl .vc { color: #ffcc66; }
+
+/* progress bars */
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.2rem 0;
+  font-size: 13px;
+}
+.bar-label { color: var(--muted); width: 140px; flex-shrink: 0; }
+.bar-track {
+  flex: 1;
+  height: 6px;
+  background: #1a1a1a;
+  border: 1px solid var(--gray);
+  position: relative;
+  max-width: 200px;
+}
+.bar-fill {
+  height: 100%;
+  background: var(--green2);
+  box-shadow: 0 0 6px rgba(57,255,20,0.4);
+}
+.bar-pct { color: var(--green); font-size: 12px; width: 36px; text-align: right; }
+
+/* git log style */
+.git-commit {
+  display: flex;
+  gap: 1rem;
+  margin: 0.2rem 0;
+  font-size: 13px;
+  align-items: baseline;
+}
+.git-hash { color: #ffaa44; }
+.git-head { color: var(--green); font-size: 11px; }
+.git-msg  { color: var(--text); }
+.git-date { color: var(--muted); font-size: 11px; margin-left: auto; white-space: nowrap; }
+
+/* grep style */
+.grep-match .match { color: var(--green); font-weight: 700; background: rgba(57,255,20,0.1); }
+
+/* caret blink */
+.caret {
+  display: inline-block;
+  width: 9px; height: 16px;
+  background: var(--green);
+  animation: blink 1s step-end infinite;
+  vertical-align: middle;
+  box-shadow: 0 0 6px var(--green);
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* divider */
+.div { color: var(--gray); margin: 0.5rem 0; user-select: none; }
+
+/* tag pill */
+.tag {
+  display: inline-block;
+  border: 1px solid var(--dim);
+  color: var(--green2);
+  font-size: 11px;
+  padding: 1px 7px;
+  margin: 2px 3px 2px 0;
+}
+
+/* error / info lines */
+.err  { color: #ff5555; }
+.info { color: #6ab0ff; }
+.warn { color: #ffcc66; }
+.ok   { color: var(--green); }
+
+/* link */
+a { color: #6ab0ff; text-decoration: none; }
+a:hover { text-decoration: underline; color: var(--green); }
+
+/* fade-in animation on scroll */
+.reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.reveal.show { opacity: 1; transform: none; }
+
+/* BOOT sequence (hidden after load) */
+#boot { display: block; }
+#content { display: none; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .window-wrap { padding: 0; margin: 0; }
+  .window { border-radius: 0; border-left: none; border-right: none; }
+  .term { padding: 1rem; }
+  .ascii { font-size: 8px; }
+  .git-date { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="window-wrap">
+  <div class="window">
+    <div class="titlebar">
+      <div class="tb-btn tb-close"></div>
+      <div class="tb-btn tb-min"></div>
+      <div class="tb-btn tb-max"></div>
+      <div class="tb-title">enlvis@dev: ~ — bash — 132×48</div>
+    </div>
+
+    <div class="term">
+
+      <!-- BOOT -->
+      <div id="boot"></div>
+
+      <!-- MAIN CONTENT -->
+      <div id="content">
+
+        <!-- ASCII header -->
+        <div class="out">
+<pre class="ascii">
+ _____       _       _     
+| ____|_ __ | |_   _(_)___ 
+|  _| | '_ \| \ \ / / / __|
+| |___| | | | |\ V /| \__ \
+|_____|_| |_|_| \_/ |_|___/ ___
+</pre>
+          <div class="div">────────────────────────────────────────────────────────────</div>
+          <span class="ok glow">[ OK ]</span> <span style="color:#888"> session started — poland</span>
+        </div>
+
+        <div class="blank"></div>
+
+        <!-- whoami -->
+        <div class="reveal">
+          <div class="prompt-line">
+            <span class="p-user">enlvis</span><span class="p-at">@</span><span class="p-host">dev</span><span class="p-colon">:</span><span class="p-path">~</span><span class="p-dollar">$</span>
+            <span class="p-cmd">whoami</span>
+          </div>
+          <div class="out">
+            <div><span class="cat-comment"># blockchain developer / open source developer</span></div>
+            <div>enlvis</div>
+          </div>
+        </div>
+
+        <!-- uname -->
+        <div class="reveal">
+          <div class="prompt-line">
+            <span class="p-user">enlvis</span><span class="p-at">@</span><span class="p-host">dev</span><span class="p-colon">:</span><span class="p-path">~</span><span class="p-dollar">$</span>
+            <span class="p-cmd">uname </span><span class="p-flag">-a</span>
+          </div>
+          <div class="out">
+            <div>EnlvisOS 6.8.0-enlvis <span class="info">#1 SMP PREEMPT_DYNAMIC</span> x86_64 GNU/Linux</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:0.25rem">uptime: 3 years, building on-chain infrastructure</div>
+          </div>
+        </div>
+
+        <div class="blank"></div>
+
+        <!-- cat about -->
+        <div class="reveal">
+          <div class="prompt-line">
+            <span class="p-user">enlvis</span><span class="p-at">@</span><span class="p-host">dev</span><span class="p-colon">:</span><span class="p-path">~</span><span class="p-dollar">$</span>
+            <span class="p-cmd">cat </span><span class="p-arg">about.txt</span>
+          </div>
+          <div class="out">
+            <div class="div">─── about.txt ───────────────────────────────────────────</div>
+            <table class="tbl">
+              <tr><td class="k">name</td>     <td class="va">Enlvis</td></tr>
+              <tr><td class="k">location</td> <td class="v">Poland</td></tr>
+              <tr><td class="k">role</td>     <td class="v">Blockchain Developer &amp; Open Source Developer</td></tr>
+              <tr><td class="k">focus</td>    <td class="vb">Web3 infrastructure, Layer-1 chains, crypto wallets</td></tr>
+              <tr><td class="k">learning</td> <td class="vc">CyberSecurity</td></tr>
+              <tr><td class="k">status</td>   <td class="va">● active — currently building</td></tr>
+            </table>
+
+          </div>
+        </div>
+
+        <div class="blank"></div>
+
+        <!-- ls projects -->
+        <div class="reveal">
+          <div class="prompt-line">
+            <span class="p-user">enlvis</span><span class="p-at">@</span><span class="p-host">dev</span><span class="p-colon">:</span><span class="p-path">~/projects</span><span class="p-dollar">$</span>
+            <span class="p-cmd">ls </span><span class="p-flag">-la</span>
+          </div>
+          <div class="out">
+            <div class="div">total 4</div>
+            <div style="display:grid; grid-template-columns: auto auto auto auto 1fr; gap: 0 1.25rem; font-size:13px; align-items:start">
+              <span style="color:var(--muted)">drwxr-xr-x</span><span style="color:var(--muted)">enlvis</span><span style="color:var(--muted)">4096</span><span style="color:var(--muted)">Jun 3</span> <span class="ls-dir">./</span>
+              <span style="color:var(--muted)">drwxr-xr-x</span><span style="color:var(--muted)">enlvis</span><span style="color:var(--muted)">4096</span><span style="color:var(--muted)">Jun 3</span> <span class="ls-dir">../</span>
+              <span style="color:var(--muted)">drwxr-xr-x</span><span style="color:var(--muted)">enlvis</span><span style="color:var(--muted)">4096</span><span style="color:var(--muted)">Jun 2</span> <span class="ls-dir">EnroChain/</span>
+              <span style="color:var(--muted)">drwxr-xr-x</span><span style="color:var(--muted)">enlvis</span><span style="color:var(--muted)">4096</span><span style="color:var(--muted)">May 28</span> <span class="ls-dir">exodus-wallet-android/</span>
+              <span style="color:var(--muted)">drwxr-xr-x</span><span style="color:var(--muted)">enlvis</span><span style="color:var(--muted)">4096</span><span style="color:var(--muted)">May 15</span> <span class="ls-dir">paylayer-testnet/</span>
+              <span style="color:var(--muted)">-rwxr-xr-x</span><span style="color:var(--muted)">enlvis</span><span style="color:var(--muted)">18K</span> <span style="color:var(--muted)">Jun 1</span>  <span class="ls-exec">enrochain_cli.py</span>
+              <span style="color:var(--muted)">-rw-r--r--</span><span style="color:var(--muted)">enlvis</span><span style="color:var(--muted)">2.1K</span><span style="color:var(--muted)">Jun 3</span>  <span class="ls-file">README.md</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="blank"></div>
+
+        <!-- git log EnroChain -->
+        <div class="reveal">
+          <div class="prompt-line">
+            <span class="p-user">enlvis</span><span class="p-at">@</span><span class="p-host">dev</span><span class="p-colon">:</span><span class="p-path">~/projects/EnroChain</span><span class="p-dollar">$</span>
+            <span class="p-cmd">git log </span><span class="p-flag">--oneline </span><span class="p-flag">--graph </span><span class="p-arg">-8</span>
+          </div>
+          <div class="out">
+            <div class="div">─── EnroChain — open source blockchain infrastructure ───</div>
+            <div class="git-commit">
+              <span style="color:var(--muted)">*</span>
+              <span class="git-hash">a3f19c2</span>
+              <span class="git-head">(HEAD→main, origin/main)</span>
+              <span class="git-msg">feat: dynamic node selection via --node flag</span>
+              <span class="git-date">2 days ago</span>
+            </div>
+            <div class="git-commit">
+              <span style="color:var(--muted)">*</span>
+              <span class="git-hash">e82b441</span>
+              <span style="width:0"></span>
+              <span class="git-msg">feat: interactive node commands + unicode TUI output</span>
+              <span class="git-date">5 days ago</span>
+            </div>
+            <div class="git-commit">
+              <span style="color:var(--muted)">*</span>
+              <span class="git-hash">90cc703</span>
+              <span style="width:0"></span>
+              <span class="git-msg">add: persistent config at ~/.enrochain_cli.json</span>
+              <span class="git-date">1 week ago</span>
+            </div>
+            <div class="git-commit">
+              <span style="color:var(--muted)">*</span>
+              <span class="git-hash">55ad128</span>
+              <span style="width:0"></span>
+              <span class="git-msg">init: EnroCoin (ERC) genesis block + consensus layer</span>
+              <span class="git-date">3 weeks ago</span>
+            </div>
+            <div style="margin-top:0.5rem; font-size:12px">
+              <span class="tag">Layer-1</span>
+              <span class="tag">Python</span>
+              <span class="tag">Open Source</span>
+              <span class="tag">ERC</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="blank"></div>
+
+        <!-- cat exodus -->
+        <div class="reveal">
+          <div class="prompt-line">
+            <span class="p-user">enlvis</span><span class="p-at">@</span><span class="p-host">dev</span><span class="p-colon">:</span><span class="p-path">~/projects/exodus-wallet-android</span><span class="p-dollar">$</span>
+            <span class="p-cmd">cat </span><span class="p-arg">ARCHITECTURE.md</span>
+          </div>
+          <div class="out">
+            <div class="div">─── Exodus 2.0 Pro — Android Crypto Wallet ──────────────</div>
+            <div style="color:var(--muted); font-size:12px; margin-bottom:0.5rem"># Four-layer isolation architecture</div>
+            <table class="tbl">
+              <tr><td class="k">Layer 1</td><td class="vb">WebView UI — frontend interface</td></tr>
+              <tr><td class="k">Layer 2</td><td class="v">JS ↔ Kotlin bridge</td></tr>
+              <tr><td class="k">Layer 3</td><td class="va">Native wallet core — ALL crypto ops isolated here</td></tr>
+              <tr><td class="k">Layer 4</td><td class="v">Blockchain RPC layer (BTC / ETH / SOL)</td></tr>
+            </table>
+            <div style="margin-top:0.5rem; font-size:12px; color:var(--muted)">
+              security: Android Keystore + AES-256-GCM | BIP-39/32/44/84 | SLIP-0010
+            </div>
+            <div style="margin-top:0.5rem">
+              <span class="tag">Android</span>
+              <span class="tag">AES-256-GCM</span>
+              <span class="tag">BIP-44</span>
+              <span class="tag">Multi-chain</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="blank"></div>
+
+        <!-- paylayer -->
+        <div class="reveal">
+          <div class="prompt-line">
+            <span class="p-user">enlvis</span><span class="p-at">@</span><span class="p-host">dev</span><span class="p-colon">:</span><span class="p-path">~/projects/paylayer-testnet</span><span class="p-dollar">$</span>
+            <span class="p-cmd">cargo </span><span class="p-arg">build </span><span class="p-flag">--release</span>
+          </div>
+          <div class="out">
+            <div><span class="ok">   Compiling</span> paylayer v0.1.0</div>
+            <div><span class="ok">   Compiling</span> tokio v1.38.0</div>
+            <div><span class="ok">   Compiling</span> axum v0.7.5</div>
+            <div><span style="color:var(--muted)">    ...</span></div>
+            <div><span class="ok">    Finished</span> <span class="info">release</span> [optimized] target(s) in 14.2s</div>
+            <div style="margin-top:0.4rem; font-size:12px; color:var(--muted)"># time-based block production · tx fees · staking · slashing · REST API</div>
+            <div style="margin-top:0.4rem">
+              <span class="tag">Rust</span>
+              <span class="tag">Tokio</span>
+              <span class="tag">Axum</span>
+              <span class="tag">PoS</span>
+              <span class="tag">Staking</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="blank"></div>
+
+        <!-- skills -->
+        <div class="reveal">
+          <div class="prompt-line">
+            <span class="p-user">enlvis</span><span class="p-at">@</span><span class="p-host">dev</span><span class="p-colon">:</span><span class="p-path">~</span><span class="p-dollar">$</span>
+            <span class="p-cmd">grep </span><span class="p-flag">-r </span><span class="p-str">"skills"</span><span class="p-arg"> ./profile/</span>
+          </div>
+          <div class="out">
+            <div class="div">─── profile/languages ───────────────────────────────────</div>
+            <div class="bar-row"><span class="bar-label">Python</span>       <div class="bar-track"><div class="bar-fill" style="width:90%"></div></div><span class="bar-pct">90%</span></div>
+            <div class="bar-row"><span class="bar-label">HTML</span>         <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-pct">100%</span></div>
+            <div class="bar-row"><span class="bar-label">CSS</span>          <div class="bar-track"><div class="bar-fill" style="width:75%"></div></div><span class="bar-pct">75%</span></div>
+            <div class="bar-row"><span class="bar-label">JavaScript</span>  <div class="bar-track"><div class="bar-fill" style="width:25%"></div></div><span class="bar-pct">25%</span></div>
+            <div class="div" style="margin-top:0.75rem">─── profile/blockchain ──────────────────────────────────</div>
+            <div style="display:flex; flex-wrap:wrap; gap:0.3rem; font-size:12px">
+              <span class="ok">✓</span> <span style="color:var(--muted); margin-right:1rem">BIP-39/32/44/84</span> <br>
+              <span class="ok">✓</span> <span style="color:var(--muted); margin-right:1rem">SLIP-0010</span> <br>
+              <span class="ok">✓</span> <span style="color:var(--muted); margin-right:1rem">HD Wallets</span> <br>
+              <span class="ok">✓</span> <span style="color:var(--muted); margin-right:1rem">PoW / PoS consensus</span> <br>
+              <span class="ok">✓</span> <span style="color:var(--muted); margin-right:1rem">BTC / ETH / SOL</span> <br>
+              <span class="ok">✓</span> <span style="color:var(--muted); margin-right:1rem">RPC Nodes</span> <br>
+              <span class="ok">✓</span> <span style="color:var(--muted)">AES-256-GCM / Android Keystore</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="blank"></div>
+
+        <!-- contact -->
+        <div class="reveal">
+          <div class="prompt-line">
+            <span class="p-user">enlvis</span><span class="p-at">@</span><span class="p-host">dev</span><span class="p-colon">:</span><span class="p-path">~</span><span class="p-dollar">$</span>
+            <span class="p-cmd">cat </span><span class="p-arg">contact.json</span>
+          </div>
+          <div class="out">
+            <div class="div">─── contact.json ────────────────────────────────────────</div>
+            <div style="font-size:13px; line-height:2">
+              <span style="color:var(--gray)">{</span><br>
+              &nbsp;&nbsp;<span class="cat-key">"github"</span>: <span style="color:#6ab0ff">"<a href="https://github.com" target="_blank">github.com/enlvis</a>"</span>,<br>
+              &nbsp;&nbsp;<span class="cat-key">"email"</span>: <span style="color:#6ab0ff">"<a href="mailto:contact@enlvis.xyz">contact@enlvis.xyz/a>"</span>,<br>
+              &nbsp;&nbsp;<span class="cat-key">"linkedin"</span>: <span style="color:#6ab0ff">"<a href="https://linkedin.com" target="_blank">linkedin.com/in/enlvis</a>"</span>,<br>
+              &nbsp;&nbsp;<span class="cat-key">"location"</span>: <span class="cat-val">"Poland"</span>,<br>
+              &nbsp;&nbsp;<span class="cat-key">"open_to"</span>: [<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span class="cat-val">"open source collaboration"</span>,<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span class="cat-val">"blockchain infrastructure consulting"</span>,<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span class="cat-val">"Web3 projects"</span><br>
+              &nbsp;&nbsp;]<br>
+              <span style="color:var(--gray)">}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="blank"></div>
+
+        <!-- final prompt with caret -->
+        <div class="reveal">
+          <div class="prompt-line">
+            <span class="p-user">enlvis</span><span class="p-at">@</span><span class="p-host">dev</span><span class="p-colon">:</span><span class="p-path">~</span><span class="p-dollar">$</span>
+            <span class="caret"></span>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /term -->
+  </div><!-- /window -->
+</div><!-- /window-wrap -->
+
+<script>
+const bootLines = [
+  { text: 'BIOS v2.1.4 — enlvis systems', delay: 0, cls: 'ok' },
+  { text: 'Initializing RAM... 32768 MB OK', delay: 120, cls: '' },
+  { text: 'Loading kernel: enlvis-6.8.0...', delay: 240, cls: '' },
+  { text: '[ OK ] Started kernel.', delay: 400, cls: 'ok' },
+  { text: '[ OK ] Mounted /dev/sda1.', delay: 520, cls: 'ok' },
+  { text: '[ OK ] Started network manager.', delay: 640, cls: 'ok' },
+  { text: '[ OK ] Reached target multi-user.target.', delay: 800, cls: 'ok' },
+  { text: '', delay: 950, cls: '' },
+  { text: 'enlvis login: enlvis', delay: 1050, cls: '' },
+  { text: 'Password: ••••••••', delay: 1250, cls: '' },
+  { text: '', delay: 1400, cls: '' },
+  { text: 'Last login: Wed Jun  3 11:42:07 2026 from 192.168.1.42', delay: 1500, cls: 'info' },
+  { text: 'Welcome to EnlvisOS 6.8.0 (Poland Build)', delay: 1620, cls: 'ok' },
+  { text: '', delay: 1750, cls: '' },
+];
+
+const boot = document.getElementById('boot');
+const content = document.getElementById('content');
+
+let i = 0;
+function nextLine() {
+  if (i >= bootLines.length) {
+    setTimeout(() => {
+      boot.style.display = 'none';
+      content.style.display = 'block';
+      revealAll();
+    }, 300);
+    return;
+  }
+  const { text, delay, cls } = bootLines[i];
+  const el = document.createElement('div');
+  el.style.fontSize = '13px';
+  el.style.lineHeight = '1.6';
+  if (cls === 'ok')   el.style.color = 'var(--green)';
+  if (cls === 'info') el.style.color = '#6ab0ff';
+  el.style.color = cls === 'ok' ? 'var(--green)' : cls === 'info' ? '#6ab0ff' : 'var(--muted)';
+  el.textContent = text || '\u00a0';
+  boot.appendChild(el);
+  i++;
+  setTimeout(nextLine, bootLines[i - 1] ? delay - (bootLines[i - 2]?.delay ?? 0) : 80);
+}
+
+function revealAll() {
+  const items = document.querySelectorAll('.reveal');
+  items.forEach((el, idx) => {
+    setTimeout(() => el.classList.add('show'), idx * 150);
+  });
+}
+
+nextLine();
+</script>
+</body>
+</html>
